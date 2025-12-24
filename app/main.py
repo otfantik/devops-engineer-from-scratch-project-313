@@ -8,9 +8,9 @@ import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 
 
-if os.environ.get('SENTRY_DSN'):
+if os.environ.get("SENTRY_DSN"):
     sentry_sdk.init(
-        dsn=os.environ.get('SENTRY_DSN'),
+        dsn=os.environ.get("SENTRY_DSN"),
         integrations=[FlaskIntegration()],
         traces_sample_rate=1.0,
         profiles_sample_rate=1.0,
@@ -34,7 +34,7 @@ def ping():
 @app.route("/error")
 def trigger_error():
     """Route to trigger an error for testing Sentry"""
-    if os.environ.get('SENTRY_DSN'):
+    if os.environ.get("SENTRY_DSN"):
         raise ZeroDivisionError("Test error for Sentry")
     return "Sentry is not configured"
 
@@ -45,7 +45,7 @@ def get_all_links():
     with next(get_session()) as session:
         statement = select(Link)
         results = session.exec(statement).all()
-        
+
         links = []
         for link in results:
             link_data = LinkRead(
@@ -53,10 +53,10 @@ def get_all_links():
                 original_url=link.original_url,
                 short_name=link.short_name,
                 short_url=f"{BASE_URL}/r/{link.short_name}",
-                created_at=link.created_at
+                created_at=link.created_at,
             )
             links.append(link_data.dict())
-        
+
         return jsonify(links)
 
 
@@ -64,40 +64,41 @@ def get_all_links():
 def create_link():
     """Создает новую ссылку"""
     data = request.get_json()
-    
-    if not data or 'original_url' not in data or 'short_name' not in data:
+
+    if not data or "original_url" not in data or "short_name" not in data:
         return jsonify({"error": "Missing required fields"}), 400
-    
+
     link_create = LinkCreate(
-        original_url=data['original_url'],
-        short_name=data['short_name']
+        original_url=data["original_url"], short_name=data["short_name"]
     )
-    
+
     with next(get_session()) as session:
         # уникальность short_name
         existing = session.exec(
             select(Link).where(Link.short_name == link_create.short_name)
         ).first()
-        
+
         if existing:
-            return jsonify({
-                "error": "Short name already exists",
-                "short_name": link_create.short_name
-            }), 409
-        
+            return jsonify(
+                {
+                    "error": "Short name already exists",
+                    "short_name": link_create.short_name,
+                }
+            ), 409
+
         link = Link(**link_create.dict())
         session.add(link)
         session.commit()
         session.refresh(link)
-        
+
         link_read = LinkRead(
             id=link.id,
             original_url=link.original_url,
             short_name=link.short_name,
             short_url=f"{BASE_URL}/r/{link.short_name}",
-            created_at=link.created_at
+            created_at=link.created_at,
         )
-        
+
         return jsonify(link_read.dict()), 201
 
 
@@ -106,18 +107,18 @@ def get_link(link_id: int):
     """Возвращает ссылку по ID"""
     with next(get_session()) as session:
         link = session.get(Link, link_id)
-        
+
         if not link:
             return jsonify({"error": "Link not found"}), 404
-        
+
         link_read = LinkRead(
             id=link.id,
             original_url=link.original_url,
             short_name=link.short_name,
             short_url=f"{BASE_URL}/r/{link.short_name}",
-            created_at=link.created_at
+            created_at=link.created_at,
         )
-        
+
         return jsonify(link_read.dict())
 
 
@@ -125,45 +126,47 @@ def get_link(link_id: int):
 def update_link(link_id: int):
     """Обновляет существующую ссылку"""
     data = request.get_json()
-    
+
     if not data:
         return jsonify({"error": "No data provided"}), 400
-    
+
     with next(get_session()) as session:
         link = session.get(Link, link_id)
-        
+
         if not link:
             return jsonify({"error": "Link not found"}), 404
-        
+
         # уникальность нового short_name
-        if 'short_name' in data and data['short_name'] != link.short_name:
+        if "short_name" in data and data["short_name"] != link.short_name:
             existing = session.exec(
-                select(Link).where(Link.short_name == data['short_name'])
+                select(Link).where(Link.short_name == data["short_name"])
             ).first()
-            
+
             if existing:
-                return jsonify({
-                    "error": "Short name already exists",
-                    "short_name": data['short_name']
-                }), 409
-        
+                return jsonify(
+                    {
+                        "error": "Short name already exists",
+                        "short_name": data["short_name"],
+                    }
+                ), 409
+
         # Обновляем поля
         for key, value in data.items():
             if hasattr(link, key):
                 setattr(link, key, value)
-        
+
         session.add(link)
         session.commit()
         session.refresh(link)
-        
+
         link_read = LinkRead(
             id=link.id,
             original_url=link.original_url,
             short_name=link.short_name,
             short_url=f"{BASE_URL}/r/{link.short_name}",
-            created_at=link.created_at
+            created_at=link.created_at,
         )
-        
+
         return jsonify(link_read.dict())
 
 
@@ -172,27 +175,25 @@ def delete_link(link_id: int):
     """Удаляет ссылку"""
     with next(get_session()) as session:
         link = session.get(Link, link_id)
-        
+
         if not link:
             return jsonify({"error": "Link not found"}), 404
-        
+
         session.delete(link)
         session.commit()
-        
-        return '', 204
+
+        return "", 204
 
 
 @app.route("/r/<short_name>", methods=["GET"])
 def redirect_to_original(short_name: str):
     """Редирект по короткой ссылке"""
     with next(get_session()) as session:
-        link = session.exec(
-            select(Link).where(Link.short_name == short_name)
-        ).first()
-        
+        link = session.exec(select(Link).where(Link.short_name == short_name)).first()
+
         if not link:
             return jsonify({"error": "Link not found"}), 404
-        
+
         return jsonify({"url": link.original_url}), 200
 
 
@@ -209,5 +210,5 @@ def internal_error(error):
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port)
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
