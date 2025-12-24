@@ -24,6 +24,10 @@ jobs:
         curl -LsSf https://astral.sh/uv/install.sh | sh
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
     
+    - name: Create virtual environment
+      run: |
+        uv venv
+    
     - name: Cache uv dependencies
       uses: actions/cache@v4
       with:
@@ -40,12 +44,12 @@ jobs:
     
     - name: Lint with Ruff
       run: |
-        python -m ruff check --output-format=github .
+        uv run python -m ruff check --output-format=github .
     
     - name: Run tests
       run: |
-        python -m pytest --tb=short
+        uv run python -m pytest --tb=short
     
     - name: Format check
       run: |
-        python -m ruff format --check .
+        uv run python -m ruff format --check .
