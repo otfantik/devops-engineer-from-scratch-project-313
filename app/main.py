@@ -6,7 +6,6 @@ from .models import Link, LinkCreate, LinkRead
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 
-
 if os.environ.get("SENTRY_DSN"):
     sentry_sdk.init(
         dsn=os.environ.get("SENTRY_DSN"),
@@ -17,22 +16,16 @@ if os.environ.get("SENTRY_DSN"):
 
 app = Flask(__name__)
 
-
-@app.before_first_request
-def startup():
-    """Создает таблицы при старте приложения"""
-    create_db_and_tables()
+create_db_and_tables()
 
 
 @app.route("/ping")
 def ping():
-    """Health check endpoint"""
     return "pong"
 
 
 @app.route("/error")
 def trigger_error():
-    """Route to trigger an error for testing Sentry"""
     if os.environ.get("SENTRY_DSN"):
         raise ZeroDivisionError("Test error for Sentry")
     return "Sentry is not configured"
@@ -40,7 +33,6 @@ def trigger_error():
 
 @app.route("/api/links", methods=["GET"])
 def get_all_links():
-    """Возвращает список всех ссылок"""
     with next(get_session()) as session:
         statement = select(Link)
         results = session.exec(statement).all()
@@ -61,7 +53,6 @@ def get_all_links():
 
 @app.route("/api/links", methods=["POST"])
 def create_link():
-    """Создает новую ссылку"""
     data = request.get_json()
 
     if not data or "original_url" not in data or "short_name" not in data:
@@ -72,7 +63,6 @@ def create_link():
     )
 
     with next(get_session()) as session:
-        # уникальность short_name
         existing = session.exec(
             select(Link).where(Link.short_name == link_create.short_name)
         ).first()
@@ -103,7 +93,6 @@ def create_link():
 
 @app.route("/api/links/<int:link_id>", methods=["GET"])
 def get_link(link_id: int):
-    """Возвращает ссылку по ID"""
     with next(get_session()) as session:
         link = session.get(Link, link_id)
 
@@ -123,7 +112,6 @@ def get_link(link_id: int):
 
 @app.route("/api/links/<int:link_id>", methods=["PUT"])
 def update_link(link_id: int):
-    """Обновляет существующую ссылку"""
     data = request.get_json()
 
     if not data:
@@ -135,7 +123,6 @@ def update_link(link_id: int):
         if not link:
             return jsonify({"error": "Link not found"}), 404
 
-        # уникальность нового short_name
         if "short_name" in data and data["short_name"] != link.short_name:
             existing = session.exec(
                 select(Link).where(Link.short_name == data["short_name"])
@@ -149,7 +136,6 @@ def update_link(link_id: int):
                     }
                 ), 409
 
-        # Обновляем поля
         for key, value in data.items():
             if hasattr(link, key):
                 setattr(link, key, value)
@@ -171,7 +157,6 @@ def update_link(link_id: int):
 
 @app.route("/api/links/<int:link_id>", methods=["DELETE"])
 def delete_link(link_id: int):
-    """Удаляет ссылку"""
     with next(get_session()) as session:
         link = session.get(Link, link_id)
 
@@ -186,7 +171,6 @@ def delete_link(link_id: int):
 
 @app.route("/r/<short_name>", methods=["GET"])
 def redirect_to_original(short_name: str):
-    """Редирект по короткой ссылке"""
     with next(get_session()) as session:
         link = session.exec(select(Link).where(Link.short_name == short_name)).first()
 
@@ -198,13 +182,11 @@ def redirect_to_original(short_name: str):
 
 @app.errorhandler(404)
 def not_found(error):
-    """Handle 404 errors"""
     return jsonify({"error": "Not found"}), 404
 
 
 @app.errorhandler(500)
 def internal_error(error):
-    """Handle 500 errors"""
     return jsonify({"error": "Internal server error"}), 500
 
 
