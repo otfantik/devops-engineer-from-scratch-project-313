@@ -22,9 +22,8 @@ def ping():
 
 @app.route("/error")
 def trigger_error():
-    """Route to trigger an error for testing Sentry"""
     if os.environ.get('SENTRY_DSN'):
-        division_by_zero = 1 / 0
+        1 / 0
     return "Sentry is not configured"
 
 @app.errorhandler(404)
