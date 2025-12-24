@@ -36,16 +36,16 @@ jobs:
     
     - name: Install dependencies
       run: |
-        uv sync --dev
+        uv pip install flask sentry-sdk[flask] pytest ruff
     
     - name: Lint with Ruff
       run: |
-        uv run ruff check --output-format=github .
+        python -m ruff check --output-format=github .
     
     - name: Run tests
       run: |
-        uv run pytest --tb=short
+        python -m pytest --tb=short
     
     - name: Format check
       run: |
-        uv run ruff format --check .
+        python -m ruff format --check .
