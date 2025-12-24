@@ -1,9 +1,8 @@
 import os
-from typing import List
 from flask import Flask, jsonify, request
 from sqlmodel import select
 from .database import get_session, create_db_and_tables, BASE_URL
-from .models import Link, LinkCreate, LinkRead, LinkUpdate
+from .models import Link, LinkCreate, LinkRead
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 

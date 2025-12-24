@@ -1,6 +1,5 @@
 import pytest
 from app.main import app
-from app.database import create_db_and_tables
 from sqlmodel import SQLModel, create_engine, Session
 from sqlmodel.pool import StaticPool
 
