@@ -1,31 +1,44 @@
-.PHONY: run install test lint format clean docker-build docker-run
+.PHONY: run install test lint format clean setup db-init dev docker-build docker-run help
 
 install:
-	uv pip install flask sentry_sdk[flask] sqlmodel psycopg2-binary python-dotenv pytest ruff
+	uv pip install -e ".[dev]"
 
 run:
-	python main.py
-
-dev:
-	FLASK_ENV=development python main.py
+	uv run python3 main.py
 
 test:
-	python -m pytest -v
+	TESTING=true uv run python3 -m pytest -v
 
 lint:
-	python -m ruff check .
+	uv run ruff check .
 
 format:
-	python -m ruff format .
-	python -m ruff check --fix .
-
-docker-build:
-	docker build -t devops-app .
-
-docker-run:
-	docker run -p 8080:8080 --env-file .env devops-app
+	uv run ruff format .
+	uv run ruff check --fix .
 
 clean:
 	rm -rf __pycache__ .pytest_cache .ruff_cache
 	find . -name "*.pyc" -delete
-	find . -type d -name "__pycache__" -exec rm -rf {} +
+	rm -f database.db
+
+setup:
+	@echo "Creating .env file..."
+	@if [ ! -f .env ]; then \
+		echo "BASE_URL=http://localhost:8080" > .env; \
+		echo "DATABASE_URL=sqlite:///database.db" >> .env; \
+		echo ".env file created"; \
+	else \
+		echo ".env file already exists"; \
+	fi
+
+db-init:
+	uv run python3 -c "from app.main import create_db_and_tables; create_db_and_tables(); print('Database initialized')"
+
+dev:
+	uv run python3 main.py
+
+docker-build:
+	docker build -t url-shortener .
+
+docker-run:
+	docker run -p 8080:8080 --env-file .env url-shortener

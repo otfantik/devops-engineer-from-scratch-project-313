@@ -1,195 +1,229 @@
+from sqlalchemy.pool import StaticPool
+from flask import Flask, request, jsonify, g
+from sqlmodel import SQLModel, create_engine, Session, select
+from app.models import Link
 import os
-from flask import Flask, jsonify, request
-from sqlmodel import select
-from .database import get_session, create_db_and_tables, BASE_URL
-from .models import Link, LinkCreate, LinkRead
-import sentry_sdk
-from sentry_sdk.integrations.flask import FlaskIntegration
+from datetime import datetime
+from dotenv import load_dotenv
 
-if os.environ.get("SENTRY_DSN"):
-    sentry_sdk.init(
-        dsn=os.environ.get("SENTRY_DSN"),
-        integrations=[FlaskIntegration()],
-        traces_sample_rate=1.0,
-        profiles_sample_rate=1.0,
-    )
+# Загрузка переменных окружения
+load_dotenv()
 
 app = Flask(__name__)
 
-create_db_and_tables()
+# Определение DATABASE_URL в зависимости от окружения
+if os.getenv("TESTING", "").lower() == "true":
+    DATABASE_URL = "sqlite:///:memory:"
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+else:
+    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///database.db")
+    engine = create_engine(DATABASE_URL)
+
+app.engine = engine
 
 
-@app.route("/ping")
+# Создание таблиц при запуске приложения
+def create_db_and_tables():
+    SQLModel.metadata.create_all(engine)
+
+
+# Функция для получения сессии
+def get_session():
+    if "session" not in g:
+        g.session = Session(engine)
+    return g.session
+
+
+# функцию доступной как атрибут приложения
+app.get_session = get_session
+
+
+@app.route("/ping", methods=["GET"])
 def ping():
-    return "pong"
-
-
-@app.route("/error")
-def trigger_error():
-    if os.environ.get("SENTRY_DSN"):
-        raise ZeroDivisionError("Test error for Sentry")
-    return "Sentry is not configured"
-
-
-@app.route("/api/links", methods=["GET"])
-def get_all_links():
-    with next(get_session()) as session:
-        statement = select(Link)
-        results = session.exec(statement).all()
-
-        links = []
-        for link in results:
-            link_data = LinkRead(
-                id=link.id,
-                original_url=link.original_url,
-                short_name=link.short_name,
-                short_url=f"{BASE_URL}/r/{link.short_name}",
-                created_at=link.created_at,
-            )
-            links.append(link_data.dict())
-
-        return jsonify(links)
+    return {"message": "pong"}
 
 
 @app.route("/api/links", methods=["POST"])
 def create_link():
-    data = request.get_json()
+    try:
+        data = request.get_json()
 
-    if not data or "original_url" not in data or "short_name" not in data:
-        return jsonify({"error": "Missing required fields"}), 400
+        if not data or "original_url" not in data or "short_name" not in data:
+            return {"error": "Missing required fields"}, 400
 
-    link_create = LinkCreate(
-        original_url=data["original_url"], short_name=data["short_name"]
-    )
+        session = get_session()
 
-    with next(get_session()) as session:
+        # Проверка на дубликат
         existing = session.exec(
-            select(Link).where(Link.short_name == link_create.short_name)
+            select(Link).where(Link.short_name == data["short_name"])
         ).first()
 
         if existing:
-            return jsonify(
-                {
-                    "error": "Short name already exists",
-                    "short_name": link_create.short_name,
-                }
-            ), 409
+            return {"error": "Short name already exists"}, 409
 
-        link = Link(**link_create.dict())
+        # Создание новой ссылки
+        link = Link(original_url=data["original_url"], short_name=data["short_name"])
+
         session.add(link)
         session.commit()
         session.refresh(link)
 
-        link_read = LinkRead(
-            id=link.id,
-            original_url=link.original_url,
-            short_name=link.short_name,
-            short_url=f"{BASE_URL}/r/{link.short_name}",
-            created_at=link.created_at,
-        )
+        return {
+            "id": link.id,
+            "original_url": link.original_url,
+            "short_name": link.short_name,
+            "short_url": link.short_url,
+            "created_at": link.created_at.isoformat() if link.created_at else None,
+        }, 201
+    except Exception as e:
+        app.logger.error(f"Error creating link: {e}")
+        return {"error": "Internal server error"}, 500
 
-        return jsonify(link_read.dict()), 201
+
+@app.route("/api/links", methods=["GET"])
+def get_all_links():
+    try:
+        session = get_session()
+        links = session.exec(select(Link)).all()
+
+        return {
+            "links": [
+                {
+                    "id": link.id,
+                    "original_url": link.original_url,
+                    "short_name": link.short_name,
+                    "short_url": link.short_url,
+                    "created_at": link.created_at.isoformat()
+                    if link.created_at
+                    else None,
+                }
+                for link in links
+            ]
+        }
+    except Exception as e:
+        app.logger.error(f"Error getting links: {e}")
+        return {"error": "Internal server error"}, 500
 
 
 @app.route("/api/links/<int:link_id>", methods=["GET"])
-def get_link(link_id: int):
-    with next(get_session()) as session:
+def get_link(link_id):
+    try:
+        session = get_session()
         link = session.get(Link, link_id)
 
         if not link:
-            return jsonify({"error": "Link not found"}), 404
+            return {"error": "Link not found"}, 404
 
-        link_read = LinkRead(
-            id=link.id,
-            original_url=link.original_url,
-            short_name=link.short_name,
-            short_url=f"{BASE_URL}/r/{link.short_name}",
-            created_at=link.created_at,
-        )
-
-        return jsonify(link_read.dict())
+        return {
+            "id": link.id,
+            "original_url": link.original_url,
+            "short_name": link.short_name,
+            "short_url": link.short_url,
+            "created_at": link.created_at.isoformat() if link.created_at else None,
+        }
+    except Exception as e:
+        app.logger.error(f"Error getting link {link_id}: {e}")
+        return {"error": "Internal server error"}, 500
 
 
 @app.route("/api/links/<int:link_id>", methods=["PUT"])
-def update_link(link_id: int):
-    data = request.get_json()
+def update_link(link_id):
+    try:
+        data = request.get_json()
 
-    if not data:
-        return jsonify({"error": "No data provided"}), 400
+        if not data:
+            return {"error": "No data provided"}, 400
 
-    with next(get_session()) as session:
+        session = get_session()
         link = session.get(Link, link_id)
 
         if not link:
-            return jsonify({"error": "Link not found"}), 404
+            return {"error": "Link not found"}, 404
 
-        if "short_name" in data and data["short_name"] != link.short_name:
+        # Обновление полей
+        if "original_url" in data:
+            link.original_url = data["original_url"]
+
+        if "short_name" in data:
+            # Проверка на дубликат (кроме текущей записи)
             existing = session.exec(
-                select(Link).where(Link.short_name == data["short_name"])
+                select(Link).where(
+                    Link.short_name == data["short_name"], Link.id != link_id
+                )
             ).first()
 
             if existing:
-                return jsonify(
-                    {
-                        "error": "Short name already exists",
-                        "short_name": data["short_name"],
-                    }
-                ), 409
+                return {"error": "Short name already exists"}, 409
 
-        for key, value in data.items():
-            if hasattr(link, key):
-                setattr(link, key, value)
+            link.short_name = data["short_name"]
 
         session.add(link)
         session.commit()
         session.refresh(link)
 
-        link_read = LinkRead(
-            id=link.id,
-            original_url=link.original_url,
-            short_name=link.short_name,
-            short_url=f"{BASE_URL}/r/{link.short_name}",
-            created_at=link.created_at,
-        )
-
-        return jsonify(link_read.dict())
+        return {
+            "id": link.id,
+            "original_url": link.original_url,
+            "short_name": link.short_name,
+            "short_url": link.short_url,
+            "created_at": link.created_at.isoformat() if link.created_at else None,
+        }
+    except Exception as e:
+        app.logger.error(f"Error updating link {link_id}: {e}")
+        return {"error": "Internal server error"}, 500
 
 
 @app.route("/api/links/<int:link_id>", methods=["DELETE"])
-def delete_link(link_id: int):
-    with next(get_session()) as session:
+def delete_link(link_id):
+    try:
+        session = get_session()
         link = session.get(Link, link_id)
 
         if not link:
-            return jsonify({"error": "Link not found"}), 404
+            return {"error": "Link not found"}, 404
 
         session.delete(link)
         session.commit()
 
-        return "", 204
+        return {"message": "Link deleted successfully"}
+    except Exception as e:
+        app.logger.error(f"Error deleting link {link_id}: {e}")
+        return {"error": "Internal server error"}, 500
 
 
-@app.route("/r/<short_name>", methods=["GET"])
-def redirect_to_original(short_name: str):
-    with next(get_session()) as session:
+# Редирект по короткой ссылке
+@app.route("/<short_name>", methods=["GET"])
+def redirect_to_original(short_name):
+    try:
+        session = get_session()
         link = session.exec(select(Link).where(Link.short_name == short_name)).first()
 
         if not link:
-            return jsonify({"error": "Link not found"}), 404
+            return {"error": "Link not found"}, 404
 
-        return jsonify({"url": link.original_url}), 200
+        return {"redirect_to": link.original_url}, 302
+    except Exception as e:
+        app.logger.error(f"Error redirecting {short_name}: {e}")
+        return {"error": "Internal server error"}, 500
+
+
+@app.teardown_appcontext
+def teardown_session(exception=None):
+    session = g.pop("session", None)
+    if session is not None:
+        session.close()
 
 
 @app.errorhandler(404)
 def not_found(error):
-    return jsonify({"error": "Not found"}), 404
-
-
-@app.errorhandler(500)
-def internal_error(error):
-    return jsonify({"error": "Internal server error"}), 500
+    return {"error": "Not found"}, 404
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
+    create_db_and_tables()
+    port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
