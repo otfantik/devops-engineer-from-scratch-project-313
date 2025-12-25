@@ -1,9 +1,8 @@
 from sqlalchemy.pool import StaticPool
-from flask import Flask, request, jsonify, g
+from flask import Flask, request, g
 from sqlmodel import SQLModel, create_engine, Session, select
 from app.models import Link
 import os
-from datetime import datetime
 from dotenv import load_dotenv
 
 # Загрузка переменных окружения
