@@ -69,13 +69,15 @@ def health_check():
                         "table_exists": True,
                         "links_count": count
                     }, 200
-                except:
+                except Exception as count_error:
                     # Если не получается посчитать, но таблица есть
+                    app.logger.warning(f"Could not count links: {count_error}")
                     return {
                         "status": "healthy",
                         "database": "connected",
                         "table_exists": True,
-                        "links_count": "unknown"
+                        "links_count": "unknown",
+                        "warning": "Could not count records"
                     }, 200
             else:
                 # Если таблицы нет, пытаемся создать
@@ -105,10 +107,12 @@ def health_check():
                 "error": str(e),
                 "message": "Attempting to recreate tables..."
             }, 503
-        except:
+        except Exception as recreate_error:
+            app.logger.error(f"Failed to recreate tables: {recreate_error}")
             return {
                 "status": "unhealthy",
-                "error": str(e)
+                "error": str(e),
+                "recreate_error": str(recreate_error)
             }, 500
 
 
