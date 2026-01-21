@@ -1,4 +1,5 @@
 from sqlalchemy.pool import StaticPool
+from sqlalchemy import text
 from flask import Flask, request, g
 from sqlmodel import SQLModel, create_engine, Session, select
 from app.models import Link
@@ -50,18 +51,20 @@ def health_check():
     try:
         # Проверяем подключение к БД
         with Session(engine) as session:
-            result = session.execute("SELECT 1")
+            result = session.execute(text("SELECT 1"))
 
             # Проверяем существование таблицы link
             result = session.execute(
-                "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'link')"
+                text(
+                    "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'link')"
+                )
             )
             table_exists = result.scalar()
 
             if table_exists:
                 # Пробуем получить количество записей
                 try:
-                    count_result = session.execute("SELECT COUNT(*) FROM link")
+                    count_result = session.execute(text("SELECT COUNT(*) FROM link"))
                     count = count_result.scalar()
                     return {
                         "status": "healthy",
