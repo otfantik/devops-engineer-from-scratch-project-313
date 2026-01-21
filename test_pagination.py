@@ -1,4 +1,3 @@
-import pytest
 from app.main import  parse_range_header
 
 
