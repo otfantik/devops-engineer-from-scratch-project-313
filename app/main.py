@@ -51,13 +51,13 @@ def health_check():
         # Проверяем подключение к БД
         with Session(engine) as session:
             result = session.execute("SELECT 1")
-            
+
             # Проверяем существование таблицы link
             result = session.execute(
                 "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'link')"
             )
             table_exists = result.scalar()
-            
+
             if table_exists:
                 # Пробуем получить количество записей
                 try:
@@ -67,7 +67,7 @@ def health_check():
                         "status": "healthy",
                         "database": "connected",
                         "table_exists": True,
-                        "links_count": count
+                        "links_count": count,
                     }, 200
                 except Exception as count_error:
                     # Если не получается посчитать, но таблица есть
@@ -77,7 +77,7 @@ def health_check():
                         "database": "connected",
                         "table_exists": True,
                         "links_count": "unknown",
-                        "warning": "Could not count records"
+                        "warning": "Could not count records",
                     }, 200
             else:
                 # Если таблицы нет, пытаемся создать
@@ -87,16 +87,16 @@ def health_check():
                         "status": "initializing",
                         "database": "connected",
                         "table_exists": False,
-                        "message": "Tables created successfully"
+                        "message": "Tables created successfully",
                     }, 200
                 else:
                     return {
                         "status": "error",
                         "database": "connected",
                         "table_exists": False,
-                        "message": "Failed to create tables"
+                        "message": "Failed to create tables",
                     }, 500
-                
+
     except Exception as e:
         app.logger.error(f"Health check failed: {e}")
         # При ошибке пробуем создать таблицы заново
@@ -105,14 +105,14 @@ def health_check():
             return {
                 "status": "recovering",
                 "error": str(e),
-                "message": "Attempting to recreate tables..."
+                "message": "Attempting to recreate tables...",
             }, 503
         except Exception as recreate_error:
             app.logger.error(f"Failed to recreate tables: {recreate_error}")
             return {
                 "status": "unhealthy",
                 "error": str(e),
-                "recreate_error": str(recreate_error)
+                "recreate_error": str(recreate_error),
             }, 500
 
 
