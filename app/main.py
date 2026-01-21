@@ -4,6 +4,7 @@ from flask import Flask, request, g
 from sqlmodel import SQLModel, create_engine, Session, select
 from app.models import Link
 import os
+import re
 from dotenv import load_dotenv
 
 # Загрузка переменных окружения
@@ -33,16 +34,40 @@ app.engine = engine
 def create_db_and_tables():
     try:
         SQLModel.metadata.create_all(engine)
-        app.logger.info("✅ Таблицы базы данных созданы/проверены")
+        app.logger.info("Таблицы базы данных созданы/проверены")
         return True
     except Exception as e:
-        app.logger.error(f"❌ Ошибка при создании таблиц: {e}")
+        app.logger.error(f"Ошибка при создании таблиц: {e}")
         return False
 
 
 # Создаем таблицы сразу при импорте/запуске
 # Это сработает и локально, и на Render при старте приложения
 create_db_and_tables()
+
+
+# Функция для парсинга диапазона из query параметра
+def parse_range_header(range_str):
+    """
+    Парсит строку диапазона вида "[0,10]"
+    Возвращает (start, end)
+    """
+    if not range_str:
+        return 0, 9  # Значения по умолчанию
+
+    # Убираем квадратные скобки и разделяем
+    match = re.match(r"\[(\d+),\s*(\d+)\]", range_str)
+    if not match:
+        return 0, 9
+
+    start = int(match.group(1))
+    end = int(match.group(2))
+
+    # Проверяем корректность
+    if start < 0 or end < start:
+        return 0, 9
+
+    return start, end
 
 
 # Health check endpoint с проверкой БД
@@ -176,22 +201,58 @@ def create_link():
 def get_all_links():
     try:
         session = get_session()
-        links = session.exec(select(Link)).all()
 
-        return {
-            "links": [
-                {
-                    "id": link.id,
-                    "original_url": link.original_url,
-                    "short_name": link.short_name,
-                    "short_url": link.short_url,
-                    "created_at": link.created_at.isoformat()
-                    if link.created_at
-                    else None,
-                }
-                for link in links
-            ]
+        # Получаем общее количество записей
+        total_count = session.exec(select(Link)).count()
+
+        # Парсим параметр range
+        range_param = request.args.get(
+            "range", "[0,9]"
+        )  # По умолчанию 10 записей (0-9)
+        start, end = parse_range_header(range_param)
+
+        # Вычисляем limit и offset для SQL запроса
+        # Диапазон inclusive: [0,10] значит 11 записей (0-10)
+        limit = end - start + 1
+        offset = start
+
+        # Получаем записи с пагинацией
+        links = session.exec(
+            select(Link)
+            .offset(offset)
+            .limit(limit)
+            .order_by(Link.id)  # Сортируем по ID для консистентности
+        ).all()
+
+        # Вычисляем фактические границы возвращаемых данных
+        actual_start = start
+        actual_end = min(start + len(links) - 1, end) if links else start - 1
+
+        # Устанавливаем заголовок Content-Range
+        # Формат: "links start-end/total"
+        response_headers = {
+            "Content-Range": f"links {actual_start}-{actual_end}/{total_count}",
+            "Accept-Ranges": "links",
         }
+
+        return (
+            {
+                "links": [
+                    {
+                        "id": link.id,
+                        "original_url": link.original_url,
+                        "short_name": link.short_name,
+                        "short_url": link.short_url,
+                        "created_at": link.created_at.isoformat()
+                        if link.created_at
+                        else None,
+                    }
+                    for link in links
+                ]
+            },
+            200,
+            response_headers,
+        )
     except Exception as e:
         app.logger.error(f"Error getting links: {e}")
         return {"error": "Internal server error"}, 500
