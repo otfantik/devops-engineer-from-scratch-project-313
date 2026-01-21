@@ -20,6 +20,9 @@ if os.getenv("TESTING", "").lower() == "true":
     )
 else:
     DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///database.db")
+    # Исправляем postgres:// на postgresql:// для SQLAlchemy (важно для Render)
+    if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
     engine = create_engine(DATABASE_URL)
 
 app.engine = engine
@@ -27,7 +30,86 @@ app.engine = engine
 
 # Создание таблиц при запуске приложения
 def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
+    try:
+        SQLModel.metadata.create_all(engine)
+        app.logger.info("✅ Таблицы базы данных созданы/проверены")
+        return True
+    except Exception as e:
+        app.logger.error(f"❌ Ошибка при создании таблиц: {e}")
+        return False
+
+
+# Создаем таблицы сразу при импорте/запуске
+# Это сработает и локально, и на Render при старте приложения
+create_db_and_tables()
+
+
+# Health check endpoint с проверкой БД
+@app.route("/health", methods=["GET"])
+def health_check():
+    try:
+        # Проверяем подключение к БД
+        with Session(engine) as session:
+            result = session.execute("SELECT 1")
+            
+            # Проверяем существование таблицы link
+            result = session.execute(
+                "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'link')"
+            )
+            table_exists = result.scalar()
+            
+            if table_exists:
+                # Пробуем получить количество записей
+                try:
+                    count_result = session.execute("SELECT COUNT(*) FROM link")
+                    count = count_result.scalar()
+                    return {
+                        "status": "healthy",
+                        "database": "connected",
+                        "table_exists": True,
+                        "links_count": count
+                    }, 200
+                except:
+                    # Если не получается посчитать, но таблица есть
+                    return {
+                        "status": "healthy",
+                        "database": "connected",
+                        "table_exists": True,
+                        "links_count": "unknown"
+                    }, 200
+            else:
+                # Если таблицы нет, пытаемся создать
+                app.logger.warning("Таблица 'link' не найдена, создаем...")
+                if create_db_and_tables():
+                    return {
+                        "status": "initializing",
+                        "database": "connected",
+                        "table_exists": False,
+                        "message": "Tables created successfully"
+                    }, 200
+                else:
+                    return {
+                        "status": "error",
+                        "database": "connected",
+                        "table_exists": False,
+                        "message": "Failed to create tables"
+                    }, 500
+                
+    except Exception as e:
+        app.logger.error(f"Health check failed: {e}")
+        # При ошибке пробуем создать таблицы заново
+        try:
+            create_db_and_tables()
+            return {
+                "status": "recovering",
+                "error": str(e),
+                "message": "Attempting to recreate tables..."
+            }, 503
+        except:
+            return {
+                "status": "unhealthy",
+                "error": str(e)
+            }, 500
 
 
 # Функция для получения сессии
@@ -223,6 +305,6 @@ def not_found(error):
 
 
 if __name__ == "__main__":
-    create_db_and_tables()
+    # Локальный запуск - таблицы уже созданы в начале
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
