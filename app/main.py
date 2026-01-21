@@ -1,5 +1,5 @@
 from sqlalchemy.pool import StaticPool
-from sqlalchemy import text
+from sqlalchemy import func, text
 from flask import Flask, request, g
 from sqlmodel import SQLModel, create_engine, Session, select
 from app.models import Link
@@ -202,8 +202,8 @@ def get_all_links():
     try:
         session = get_session()
 
-        # Получаем общее количество записей
-        total_count = session.exec(select(Link)).count()
+        # Получаем общее количество записей - ИСПРАВЛЕННАЯ СТРОКА
+        total_count = session.scalar(select(Link).count()) or 0
 
         # Парсим параметр range
         range_param = request.args.get(
