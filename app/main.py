@@ -13,7 +13,7 @@ load_dotenv()
 app = Flask(__name__)
 
 frontend_local = "http://localhost:3000"
-frontend_prod = os.environ.get('RENDER_EXTERNAL_URL', '')
+frontend_prod = os.environ.get("RENDER_EXTERNAL_URL", "")
 CORS(app, origins=[frontend_local, frontend_prod])
 
 if os.getenv("TESTING", "").lower() == "true":
@@ -31,6 +31,7 @@ else:
 
 app.engine = engine
 
+
 def create_db_and_tables():
     try:
         SQLModel.metadata.create_all(engine)
@@ -40,7 +41,9 @@ def create_db_and_tables():
         app.logger.error(f"Ошибка при создании таблиц: {e}")
         return False
 
+
 create_db_and_tables()
+
 
 def parse_range_header(range_str):
     if not range_str:
@@ -53,6 +56,7 @@ def parse_range_header(range_str):
     if start < 0 or end < start:
         return 0, 9
     return start, end
+
 
 @app.route("/health", methods=["GET"])
 def health_check():
@@ -117,16 +121,20 @@ def health_check():
                 "recreate_error": str(recreate_error),
             }, 500
 
+
 def get_session():
     if "session" not in g:
         g.session = Session(engine)
     return g.session
 
+
 app.get_session = get_session
+
 
 @app.route("/ping", methods=["GET"])
 def ping():
     return {"message": "pong"}
+
 
 @app.route("/api/links", methods=["POST"])
 def create_link():
@@ -155,6 +163,7 @@ def create_link():
         app.logger.error(f"Error creating link: {e}")
         return {"error": "Internal server error"}, 500
 
+
 @app.route("/api/links", methods=["GET"])
 def get_all_links():
     try:
@@ -162,17 +171,14 @@ def get_all_links():
         total_count = session.scalar(select(func.count(Link.id))) or 0
         range_param = request.args.get("range", "[0,9]")
         start, end = parse_range_header(range_param)
-        
+
         limit = end - start + 1
         offset = start
-        
+
         links = session.exec(
-            select(Link)
-            .offset(offset)
-            .limit(limit)
-            .order_by(Link.id)
+            select(Link).offset(offset).limit(limit).order_by(Link.id)
         ).all()
-        
+
         if not links:
             if start >= total_count:
                 actual_start = total_count - 1 if total_count > 0 else 0
@@ -183,7 +189,7 @@ def get_all_links():
         else:
             actual_start = start
             actual_end = start + len(links) - 1
-        
+
         response_headers = {
             "Content-Range": f"links {actual_start}-{actual_end}/{total_count}",
             "Accept-Ranges": "links",
@@ -210,6 +216,7 @@ def get_all_links():
         app.logger.error(f"Error getting links: {e}")
         return {"error": "Internal server error"}, 500
 
+
 @app.route("/api/links/<int:link_id>", methods=["GET"])
 def get_link(link_id):
     try:
@@ -227,6 +234,7 @@ def get_link(link_id):
     except Exception as e:
         app.logger.error(f"Error getting link {link_id}: {e}")
         return {"error": "Internal server error"}, 500
+
 
 @app.route("/api/links/<int:link_id>", methods=["PUT"])
 def update_link(link_id):
@@ -263,6 +271,7 @@ def update_link(link_id):
         app.logger.error(f"Error updating link {link_id}: {e}")
         return {"error": "Internal server error"}, 500
 
+
 @app.route("/api/links/<int:link_id>", methods=["DELETE"])
 def delete_link(link_id):
     try:
@@ -277,6 +286,7 @@ def delete_link(link_id):
         app.logger.error(f"Error deleting link {link_id}: {e}")
         return {"error": "Internal server error"}, 500
 
+
 @app.route("/<short_name>", methods=["GET"])
 def redirect_to_original(short_name):
     try:
@@ -289,15 +299,18 @@ def redirect_to_original(short_name):
         app.logger.error(f"Error redirecting {short_name}: {e}")
         return {"error": "Internal server error"}, 500
 
+
 @app.teardown_appcontext
 def teardown_session(exception=None):
     session = g.pop("session", None)
     if session is not None:
         session.close()
 
+
 @app.errorhandler(404)
 def not_found(error):
     return {"error": "Not found"}, 404
+
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))

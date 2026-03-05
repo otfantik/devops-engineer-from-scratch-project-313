@@ -1,5 +1,6 @@
 from app.main import parse_range_header
 
+
 def test_parse_range_header():
     assert parse_range_header("[0,10]") == (0, 10)
     assert parse_range_header("[5,15]") == (5, 15)
@@ -8,6 +9,7 @@ def test_parse_range_header():
     assert parse_range_header("[-5,10]") == (0, 9)
     assert parse_range_header("invalid") == (0, 9)
     assert parse_range_header("") == (0, 9)
+
 
 def test_pagination_api(client):
     for i in range(15):
@@ -37,6 +39,7 @@ def test_pagination_api(client):
     assert response.status_code == 200
     assert response.headers["Content-Range"] == "links 0-9/15"
     assert len(response.json["links"]) == 10
+
 
 def test_pagination_edge_cases(client):
     for i in range(5):
