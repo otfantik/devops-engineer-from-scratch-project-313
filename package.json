@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@hexlet/project-devops-deploy-crud-frontend": "^1.0.4"
+  },
+  "scripts": {
+    "start-frontend": "npx start-hexlet-devops-deploy-crud-frontend"
+  }
+}
