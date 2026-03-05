@@ -1,6 +1,6 @@
 from sqlalchemy.pool import StaticPool
 from flask import Flask, request, g
-from sqlalchemy import text
+from sqlalchemy import text, func
 from flask_cors import CORS
 from sqlmodel import SQLModel, create_engine, Session, select
 from app.models import Link
@@ -159,7 +159,7 @@ def create_link():
 def get_all_links():
     try:
         session = get_session()
-        total_count = session.scalar(select(Link).count()) or 0
+        total_count = session.scalar(select(func.count(Link.id))) or 0
         range_param = request.args.get("range", "[0,9]")
         start, end = parse_range_header(range_param)
         limit = end - start + 1
