@@ -169,9 +169,13 @@ def get_all_links():
             .offset(offset)
             .limit(limit)
             .order_by(Link.id)
-        ).all()
-        actual_start = start
-        actual_end = min(start + len(links) - 1, end) if links else start - 1
+        ).all()        
+        if not links:
+            actual_start = 0
+            actual_end = -1
+        else:
+            actual_start = start
+            actual_end = start + len(links) - 1
         response_headers = {
             "Content-Range": f"links {actual_start}-{actual_end}/{total_count}",
             "Accept-Ranges": "links",
