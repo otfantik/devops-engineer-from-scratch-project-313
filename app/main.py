@@ -1,5 +1,6 @@
 from sqlalchemy.pool import StaticPool
 from flask import Flask, request, g
+from sqlalchemy import text
 from flask_cors import CORS
 from sqlmodel import SQLModel, create_engine, Session, select
 from app.models import Link
