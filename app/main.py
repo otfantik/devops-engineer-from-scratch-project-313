@@ -162,20 +162,21 @@ def get_all_links():
         total_count = session.scalar(select(func.count(Link.id))) or 0
         range_param = request.args.get("range", "[0,9]")
         start, end = parse_range_header(range_param)
-        limit = end - start + 1
-        offset = start
-        links = session.exec(
-            select(Link)
-            .offset(offset)
-            .limit(limit)
-            .order_by(Link.id)
-        ).all()        
-        if not links:
-            actual_start = 0
-            actual_end = -1
+        if start >= total_count:
+            links = []
+            actual_start = total_count - 1 if total_count > 0 else 0
+            actual_end = total_count - 1 if total_count > 0 else -1
         else:
+            limit = end - start + 1
+            offset = start
+            links = session.exec(
+                select(Link)
+                .offset(offset)
+                .limit(limit)
+                .order_by(Link.id)
+            ).all()
             actual_start = start
-            actual_end = start + len(links) - 1
+            actual_end = min(start + len(links) - 1, end) if links else start - 1
         response_headers = {
             "Content-Range": f"links {actual_start}-{actual_end}/{total_count}",
             "Accept-Ranges": "links",
