@@ -4,8 +4,8 @@ WORKDIR /app
 
 RUN pip install uv
 
-COPY pyproject.toml .
-COPY Makefile .
+# Копируем все файлы, необходимые для установки зависимостей
+COPY pyproject.toml README.md Makefile ./
 COPY app/ ./app/
 
 RUN uv sync --no-dev
