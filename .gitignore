@@ -1,3 +1,17 @@
+# Node.js
+node_modules/
+npm-debug.log*
+package-lock.json
+
+# Caddy
+caddy_data/
+caddy_config/
+
+# Базы данных
+*.db
+*.sqlite
+*.sqlite3
+
 # Python
 __pycache__/
 *.py[cod]
@@ -9,12 +23,6 @@ __pycache__/
 venv/
 ENV/
 env/
-
-#front
-node_modules/
-
-# uv
-uv.lock
 
 # IDE
 .vscode/
@@ -28,11 +36,3 @@ uv.lock
 dist/
 build/
 *.egg-info/
-
-# Local testing
-.pytest_cache/
-.coverage
-htmlcov/
-
-# test 
-.db

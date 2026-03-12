@@ -1,0 +1,14 @@
+{
+  "name": "devops-engineer-from-scratch-project-313",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "caddy run --config Caddyfile",
+    "dev": "concurrently \"make run\" \"npx start-hexlet-devops-deploy-crud-frontend\""
+  },
+  "dependencies": {
+    "@hexlet/project-devops-deploy-crud-frontend": "^1.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
