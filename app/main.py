@@ -1,16 +1,23 @@
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
+from app.database import create_db_and_tables
+from app.routers import links
 
-# Создаем объект app (экспортируется для запуска)
-app = FastAPI(title="DevOps Engineer Project")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    create_db_and_tables()
+    yield
+    # Shutdown
+    pass
+
+
+app = FastAPI(title="DevOps Engineer Project", lifespan=lifespan)
+
+app.include_router(links.router, prefix="/api/links", tags=["links"])
 
 
 @app.get("/ping")
 async def ping():
     return "pong"
-
-
-# Для локального запуска (если потребуется)
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8080, reload=True)

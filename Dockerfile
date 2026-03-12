@@ -4,7 +4,6 @@ WORKDIR /app
 
 RUN pip install uv
 
-# Копируем все файлы, необходимые для установки зависимостей
 COPY pyproject.toml README.md Makefile ./
 COPY app/ ./app/
 
