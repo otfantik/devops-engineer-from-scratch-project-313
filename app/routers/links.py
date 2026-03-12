@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends, Request, Response
-from sqlmodel import Session, select, func
-from app.database import engine
-from app.models import Link, LinkCreate, LinkUpdate, LinkResponse
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from sqlmodel import Session, func, select
+
 from app.config import settings
+from app.database import engine
+from app.models import Link, LinkCreate, LinkResponse, LinkUpdate
 
 router = APIRouter()
 
