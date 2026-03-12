@@ -1,7 +1,8 @@
 from fastapi.testclient import TestClient
-from app.main import app
+from sqlmodel import Session, SQLModel
+
 from app.database import engine
-from sqlmodel import SQLModel, Session
+from app.main import app
 from app.models import Link
 
 client = TestClient(app)

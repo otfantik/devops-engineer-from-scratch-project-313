@@ -1,9 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends, Request
-from sqlmodel import Session, select, func
-from app.database import engine
-from app.models import Link, LinkCreate, LinkUpdate, LinkResponse
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlmodel import Session, func, select
+
 from app.config import settings
-import json
+from app.database import engine
+from app.models import Link, LinkCreate, LinkResponse, LinkUpdate
 
 router = APIRouter()
 
@@ -14,7 +14,6 @@ def get_session():
 def parse_range(range_header: str):
     """Парсит заголовок range=[start,end]"""
     try:
-        # Убираем квадратные скобки и разделяем по запятой
         range_str = range_header.strip('[]')
         start, end = map(int, range_str.split(','))
         return start, end
@@ -26,8 +25,8 @@ async def get_links(
     request: Request,
     session: Session = Depends(get_session)
 ):
-    # Получаем общее количество записей
-    total = session.exec(select(func.count(Link.id))).one()
+    # Получаем общее количество записей (нужно для будущего Content-Range)
+    _ = session.exec(select(func.count(Link.id))).one()
     
     # Парсим range из заголовка
     range_header = request.headers.get("range")
@@ -46,7 +45,7 @@ async def get_links(
     links = session.exec(query).all()
     
     # Формируем ответ
-    response_links = [
+    return [
         LinkResponse(
             id=link.id,
             original_url=link.original_url,
@@ -56,8 +55,6 @@ async def get_links(
         )
         for link in links
     ]
-    
-    return response_links
 
 @router.post("", response_model=LinkResponse, status_code=201)
 async def create_link(link: LinkCreate, session: Session = Depends(get_session)):
@@ -95,7 +92,11 @@ async def get_link(link_id: int, session: Session = Depends(get_session)):
     )
 
 @router.put("/{link_id}", response_model=LinkResponse)
-async def update_link(link_id: int, link_update: LinkUpdate, session: Session = Depends(get_session)):
+async def update_link(
+    link_id: int,
+    link_update: LinkUpdate,
+    session: Session = Depends(get_session)
+):
     link = session.get(Link, link_id)
     if not link:
         raise HTTPException(status_code=404, detail="Link not found")
