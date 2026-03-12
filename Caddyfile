@@ -1,19 +1,15 @@
 :8080 {
-    # Статика фронтенда
-    root * /app/node_modules/@hexlet/project-devops-deploy-crud-frontend/dist
+    root * /usr/share/caddy
     file_server
 
-    # Прокси API запросов к бэкенду
-    handle_path /api/* {
-        reverse_proxy localhost:8000
+    handle /api/* {
+        reverse_proxy 127.0.0.1:8000
     }
 
-    # Прокси для редиректов коротких ссылок
-    handle_path /r/* {
-        reverse_proxy localhost:8000
+    handle /r/* {
+        reverse_proxy 127.0.0.1:8000
     }
 
-    # Все остальные пути отдаем index.html для SPA
     handle {
         try_files {path} /index.html
     }
