@@ -1,13 +1,7 @@
-{
-    # Отключаем админку, чтобы не конфликтовать
-    admin off
-}
-
 :8080 {
     root * /usr/share/caddy
     file_server
 
-    # Прокси API и специальных путей на бэкенд
     handle_path /api/* {
         reverse_proxy 127.0.0.1:8000
     }
@@ -20,7 +14,6 @@
         reverse_proxy 127.0.0.1:8000
     }
 
-    # Все остальное - SPA фронтенд
     handle {
         try_files {path} /index.html
     }
