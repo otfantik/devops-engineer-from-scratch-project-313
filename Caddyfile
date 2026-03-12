@@ -2,14 +2,21 @@
     root * /usr/share/caddy
     file_server
 
-    handle /api/* {
+    # Явно проксируем все пути, начинающиеся с /api/ и /r/
+    handle_path /api/* {
         reverse_proxy 127.0.0.1:8000
     }
 
-    handle /r/* {
+    handle_path /r/* {
         reverse_proxy 127.0.0.1:8000
     }
 
+    # ЯВНО проксируем путь /ping, чтобы он не ловился SPA-обработчиком
+    handle_path /ping {
+        reverse_proxy 127.0.0.1:8000
+    }
+
+    # Для всего остального (фронтенд SPA)
     handle {
         try_files {path} /index.html
     }

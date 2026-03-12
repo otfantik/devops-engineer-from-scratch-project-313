@@ -45,4 +45,4 @@ WORKDIR /app
 
 EXPOSE 8080
 
-CMD sh -c "cd /app && /usr/local/bin/uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 & /usr/bin/caddy run --config /etc/caddy/Caddyfile --adapter caddyfile"
+CMD sh -c "/usr/local/bin/uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --log-level info & sleep 2 && /usr/bin/caddy run --config /etc/caddy/Caddyfile --adapter caddyfile"
