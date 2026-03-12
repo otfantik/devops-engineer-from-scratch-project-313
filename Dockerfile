@@ -17,10 +17,7 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install
 
-RUN cd node_modules/@hexlet/project-devops-deploy-crud-frontend && \
-    npm run build && \
-    mkdir -p /app/dist && \
-    cp -r dist/* /app/dist/
+RUN cp -r node_modules/@hexlet/project-devops-deploy-crud-frontend/dist /app/dist
 
 
 FROM caddy:2-alpine
