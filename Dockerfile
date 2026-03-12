@@ -35,7 +35,8 @@ COPY Caddyfile /etc/caddy/Caddyfile
 RUN apk add --no-cache python3 py3-pip && \
     chmod +x /usr/bin/caddy && \
     mkdir -p /config /data && \
-    chown -R 1000:1000 /config /data
+    chown -R 1000:1000 /config /data && \
+    setcap -r /usr/bin/caddy
 
 USER 1000:1000
 
