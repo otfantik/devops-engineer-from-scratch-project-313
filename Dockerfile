@@ -29,10 +29,11 @@ COPY --from=frontend /app/dist /usr/share/caddy
 
 COPY Caddyfile /etc/caddy/Caddyfile
 
-RUN apk add --no-cache python3 py3-pip
+RUN apk add --no-cache python3 py3-pip && \
+    chmod +x /usr/bin/caddy
 
 WORKDIR /app
 
 EXPOSE 8080
 
-CMD sh -c "cd /app && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 & caddy run --config /etc/caddy/Caddyfile --adapter caddyfile"
+CMD sh -c "cd /app && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 & /usr/bin/caddy run --config /etc/caddy/Caddyfile --adapter caddyfile"
