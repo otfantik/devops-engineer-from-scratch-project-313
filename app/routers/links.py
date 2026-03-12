@@ -1,9 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlmodel import Session, func, select
-
-from app.config import settings
+from fastapi import APIRouter, HTTPException, Depends, Request, Response
+from sqlmodel import Session, select, func
 from app.database import engine
-from app.models import Link, LinkCreate, LinkResponse, LinkUpdate
+from app.models import Link, LinkCreate, LinkUpdate, LinkResponse
+from app.config import settings
 
 router = APIRouter()
 
@@ -14,7 +13,6 @@ def get_session():
 
 
 def parse_range(range_header: str):
-    """Парсит заголовок range=[start,end]"""
     try:
         range_str = range_header.strip("[]")
         start, end = map(int, range_str.split(","))
@@ -24,27 +22,26 @@ def parse_range(range_header: str):
 
 
 @router.get("", response_model=list[LinkResponse])
-async def get_links(request: Request, session: Session = Depends(get_session)):
-    # Получаем общее количество записей (нужно для будущего Content-Range)
-    _ = session.exec(select(func.count(Link.id))).one()
+async def get_links(
+    request: Request, response: Response, session: Session = Depends(get_session)
+):
+    total = session.exec(select(func.count(Link.id))).one()
 
-    # Парсим range из заголовка
     range_header = request.headers.get("range")
     start, end = parse_range(range_header) if range_header else (0, 9)
 
-    # Валидация диапазона
     if start is None or end is None or start < 0 or end < start:
         start, end = 0, 9
 
-    # Рассчитываем limit и offset
     limit = end - start + 1
     offset = start
 
-    # Получаем записи с пагинацией
+    response.headers["Content-Range"] = f"links {start}-{end}/{total}"
+    response.headers["Access-Control-Expose-Headers"] = "Content-Range"
+
     query = select(Link).offset(offset).limit(limit)
     links = session.exec(query).all()
 
-    # Формируем ответ
     return [
         LinkResponse(
             id=link.id,
