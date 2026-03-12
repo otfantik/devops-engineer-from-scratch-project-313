@@ -2,12 +2,10 @@ FROM python:3.9-slim AS backend
 
 WORKDIR /app
 
-RUN pip install uv
-
 COPY pyproject.toml README.md Makefile ./
 COPY app/ ./app/
 
-RUN uv sync --no-dev
+RUN pip install --no-cache-dir fastapi uvicorn sqlmodel psycopg2-binary python-dotenv pydantic-settings
 
 
 FROM node:20-slim AS frontend
@@ -21,19 +19,12 @@ RUN cp -r node_modules/@hexlet/project-devops-deploy-crud-frontend/dist /app/dis
 
 FROM caddy:2-alpine
 
-ENV XDG_CONFIG_HOME=/config
-ENV XDG_DATA_HOME=/data
-
-COPY --from=backend /usr/local/bin/uv /usr/local/bin/uv
 COPY --from=backend /app /app
-COPY --from=backend /usr/local/lib/python3.9 /usr/local/lib/python3.9
-COPY --from=backend /usr/local/bin/python3 /usr/local/bin/python3
-
 COPY --from=frontend /app/dist /usr/share/caddy
-
 COPY Caddyfile /etc/caddy/Caddyfile
 
 RUN apk add --no-cache python3 py3-pip && \
+    pip3 install --break-system-packages fastapi uvicorn sqlmodel psycopg2-binary python-dotenv pydantic-settings && \
     chmod +x /usr/bin/caddy && \
     mkdir -p /config /data && \
     chown -R 1000:1000 /config /data && \
@@ -45,4 +36,7 @@ WORKDIR /app
 
 EXPOSE 8080
 
-CMD sh -c "/usr/local/bin/uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --log-level info & sleep 2 && /usr/bin/caddy run --config /etc/caddy/Caddyfile --adapter caddyfile"
+CMD sh -c "\
+  python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --log-level info & \
+  /usr/bin/caddy run --config /etc/caddy/Caddyfile --adapter caddyfile \
+"
