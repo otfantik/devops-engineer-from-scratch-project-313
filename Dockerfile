@@ -16,7 +16,11 @@ WORKDIR /app
 
 COPY package.json ./
 RUN npm install
-RUN npx @hexlet/project-devops-deploy-crud-frontend build
+
+RUN cd node_modules/@hexlet/project-devops-deploy-crud-frontend && \
+    npm run build && \
+    mkdir -p /app/dist && \
+    cp -r dist/* /app/dist/
 
 
 FROM caddy:2-alpine
@@ -25,7 +29,7 @@ COPY --from=backend /app /app
 COPY --from=backend /usr/local/bin/python3 /usr/local/bin/
 COPY --from=backend /usr/local/lib/python3.9 /usr/local/lib/python3.9
 
-COPY --from=frontend /app/node_modules/@hexlet/project-devops-deploy-crud-frontend/dist /usr/share/caddy
+COPY --from=frontend /app/dist /usr/share/caddy
 
 COPY Caddyfile /etc/caddy/Caddyfile
 
