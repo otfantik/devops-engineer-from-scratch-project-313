@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import create_db_and_tables
-from app.routers import links
+from app.routers import links, redirect
 
 
 @asynccontextmanager
@@ -24,6 +24,7 @@ app.add_middleware(
 )
 
 app.include_router(links.router, prefix="/api/links", tags=["links"])
+app.include_router(redirect.router)
 
 
 @app.get("/ping")
