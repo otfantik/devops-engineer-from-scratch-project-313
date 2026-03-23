@@ -1,4 +1,4 @@
-FROM python:3.9-slim AS backend
+FROM python:3.12-slim AS backend
 
 WORKDIR /app
 
@@ -23,7 +23,7 @@ FROM nginx:alpine
 
 COPY --from=backend /app /app
 COPY --from=backend /usr/local/bin/uv /usr/local/bin/uv
-COPY --from=backend /usr/local/lib/python3.9 /usr/local/lib/python3.9
+COPY --from=backend /usr/local/lib/python3.12 /usr/local/lib/python3.12
 COPY --from=backend /usr/local/bin/python3 /usr/local/bin/python3
 
 COPY --from=frontend /app/dist /usr/share/nginx/html
@@ -37,4 +37,4 @@ WORKDIR /app
 
 EXPOSE 80
 
-CMD sh -c "uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --log-level info & nginx -g 'daemon off;'"
+CMD sh -c "uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --log-level info & sleep 5 && nginx -g 'daemon off;'"
