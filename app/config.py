@@ -1,7 +1,6 @@
-from dotenv import load_dotenv
-from pydantic_settings import BaseSettings, SettingsConfigDict
+import os
 
-load_dotenv()
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -12,3 +11,6 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+if os.getenv("DATABASE_URL"):
+    settings.DATABASE_URL = os.getenv("DATABASE_URL")
