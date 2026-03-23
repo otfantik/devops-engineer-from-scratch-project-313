@@ -35,6 +35,9 @@ dev = [
     "ruff>=0.6.0",
 ]
 
+[tool.uv]
+python-preference = "only-system"
+
 [tool.ruff]
 line-length = 88
 target-version = "py312"
