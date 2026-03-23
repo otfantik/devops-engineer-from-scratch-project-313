@@ -1,5 +1,3 @@
-import os
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,6 +9,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
-if os.getenv("DATABASE_URL"):
-    settings.DATABASE_URL = os.getenv("DATABASE_URL")
