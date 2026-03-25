@@ -2,6 +2,10 @@ FROM python:3.12-slim AS backend
 
 WORKDIR /app
 
+RUN apt-get update && \
+    apt-get install -y nginx && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN pip install uv
 
 COPY pyproject.toml README.md Makefile ./
@@ -19,22 +23,16 @@ RUN npm install
 RUN cp -r node_modules/@hexlet/project-devops-deploy-crud-frontend/dist /app/dist
 
 
-FROM nginx:alpine
+FROM backend AS final
 
 COPY --from=backend /app /app
-COPY --from=backend /usr/local/bin/uv /usr/local/bin/uv
-COPY --from=backend /usr/local/lib/python3.12 /usr/local/lib/python3.12
-COPY --from=backend /usr/local/bin/python3 /usr/local/bin/python3
+COPY --from=frontend /app/dist /var/www/html
 
-COPY --from=frontend /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/sites-available/default
 
-COPY nginx.conf /etc/nginx/nginx.conf
-
-RUN apk add --no-cache python3 py3-pip && \
-    pip3 install --break-system-packages uv
-
-WORKDIR /app
+RUN rm /etc/nginx/sites-enabled/default && \
+    ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
 EXPOSE 80
 
-CMD sh -c "uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --log-level info & sleep 5 && nginx -g 'daemon off;'"
+CMD sh -c "uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --log-level info & nginx -g 'daemon off;'"
